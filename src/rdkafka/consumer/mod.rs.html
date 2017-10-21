@@ -241,6 +241,7 @@
 <span id="196">196</span>
 <span id="197">197</span>
 <span id="198">198</span>
+<span id="199">199</span>
 </pre><pre class="rust ">
 <span class="doccomment">//! Base trait and common functionality for all consumers.</span>
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">base_consumer</span>;
@@ -364,7 +365,8 @@
         <span class="self">self</span>.<span class="ident">get_base_consumer</span>().<span class="ident">unsubscribe</span>();
     }
 
-    <span class="doccomment">/// Manually assign topics and partitions to the consumer.</span>
+    <span class="doccomment">/// Manually assign topics and partitions to the consumer. If used, automatic consumer</span>
+    <span class="doccomment">/// rebalance won&#39;t be activated.</span>
     <span class="kw">fn</span> <span class="ident">assign</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">assignment</span>: <span class="kw-2">&amp;</span><span class="ident">TopicPartitionList</span>) <span class="op">-&gt;</span> <span class="ident">KafkaResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">get_base_consumer</span>().<span class="ident">assign</span>(<span class="ident">assignment</span>)
     }

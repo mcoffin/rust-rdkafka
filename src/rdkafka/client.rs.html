@@ -464,11 +464,11 @@
 
 <span class="kw">impl</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">NativeClient</span> {
     <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) {
-        <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;Destroying client: {:p}&quot;</span>, <span class="self">self</span>.<span class="ident">ptr</span>);
+        <span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;Destroying client: {:p}&quot;</span>, <span class="self">self</span>.<span class="ident">ptr</span>);
         <span class="kw">unsafe</span> {
             <span class="ident">rdsys</span>::<span class="ident">rd_kafka_destroy</span>(<span class="self">self</span>.<span class="ident">ptr</span>);
         }
-        <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;Client destroyed: {:?}&quot;</span>, <span class="self">self</span>.<span class="ident">ptr</span>);
+        <span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;Client destroyed: {:?}&quot;</span>, <span class="self">self</span>.<span class="ident">ptr</span>);
     }
 }
 

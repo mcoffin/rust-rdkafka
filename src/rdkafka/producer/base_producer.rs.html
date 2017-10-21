@@ -253,6 +253,17 @@
 <span id="208">208</span>
 <span id="209">209</span>
 <span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
 </pre><pre class="rust ">
 <span class="doccomment">//! Low level Kafka producer.</span>
 <span class="doccomment">//!</span>
@@ -318,17 +329,20 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">EmptyProducerContext</span>;
 
-<span class="kw">impl</span> <span class="ident">Context</span> <span class="kw">for</span> <span class="ident">EmptyProducerContext</span> { }
+<span class="kw">impl</span> <span class="ident">Context</span> <span class="kw">for</span> <span class="ident">EmptyProducerContext</span> {}
 <span class="kw">impl</span> <span class="ident">ProducerContext</span> <span class="kw">for</span> <span class="ident">EmptyProducerContext</span> {
     <span class="kw">type</span> <span class="ident">DeliveryContext</span> <span class="op">=</span> ();
 
-    <span class="kw">fn</span> <span class="ident">delivery</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, _: <span class="kw-2">&amp;</span><span class="ident">DeliveryResult</span>, _: <span class="self">Self</span>::<span class="ident">DeliveryContext</span>) { }
+    <span class="kw">fn</span> <span class="ident">delivery</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, _: <span class="kw-2">&amp;</span><span class="ident">DeliveryResult</span>, _: <span class="self">Self</span>::<span class="ident">DeliveryContext</span>) {}
 }
 
 <span class="doccomment">/// Callback that gets called from librdkafka every time a message succeeds or fails to be</span>
 <span class="doccomment">/// delivered.</span>
 <span class="kw">unsafe</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">delivery_cb</span><span class="op">&lt;</span><span class="ident">C</span>: <span class="ident">ProducerContext</span><span class="op">&gt;</span>(
-        <span class="ident">_client</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">RDKafka</span>, <span class="ident">msg</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">RDKafkaMessage</span>, <span class="ident">_opaque</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">c_void</span>) {
+    <span class="ident">_client</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">RDKafka</span>,
+    <span class="ident">msg</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">RDKafkaMessage</span>,
+    <span class="ident">_opaque</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">c_void</span>,
+) {
     <span class="kw">let</span> <span class="ident">producer_context</span> <span class="op">=</span> <span class="ident">Box</span>::<span class="ident">from_raw</span>(<span class="ident">_opaque</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">C</span>);
     <span class="kw">let</span> <span class="ident">delivery_context</span> <span class="op">=</span> <span class="ident">Box</span>::<span class="ident">from_raw</span>((<span class="kw-2">*</span><span class="ident">msg</span>).<span class="ident">_private</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">C</span>::<span class="ident">DeliveryContext</span>);
     <span class="kw">let</span> <span class="ident">owner</span> <span class="op">=</span> <span class="number">42u8</span>;
@@ -401,10 +415,10 @@
         <span class="ident">payload</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">P</span><span class="op">&gt;</span>,
         <span class="ident">key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">K</span><span class="op">&gt;</span>,
         <span class="ident">delivery_context</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="ident">C</span>::<span class="ident">DeliveryContext</span><span class="op">&gt;&gt;</span>,
-        <span class="ident">timestamp</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i64</span><span class="op">&gt;</span>
+        <span class="ident">timestamp</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i64</span><span class="op">&gt;</span>,
     ) <span class="op">-&gt;</span> <span class="ident">KafkaResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
-        <span class="kw">where</span> <span class="ident">K</span>: <span class="ident">ToBytes</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span>,
-              <span class="ident">P</span>: <span class="ident">ToBytes</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span> {
+    <span class="kw">where</span> <span class="ident">K</span>: <span class="ident">ToBytes</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span>,
+          <span class="ident">P</span>: <span class="ident">ToBytes</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span> {
         <span class="kw">let</span> (<span class="ident">payload_ptr</span>, <span class="ident">payload_len</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">payload</span>.<span class="ident">map</span>(<span class="ident">P</span>::<span class="ident">to_bytes</span>) {
             <span class="prelude-val">None</span> <span class="op">=&gt;</span> (<span class="ident">ptr</span>::<span class="ident">null_mut</span>(), <span class="number">0</span>),
             <span class="prelude-val">Some</span>(<span class="ident">p</span>) <span class="op">=&gt;</span> (<span class="ident">p</span>.<span class="ident">as_ptr</span>() <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">c_void</span>, <span class="ident">p</span>.<span class="ident">len</span>()),
@@ -432,6 +446,9 @@
             )
         };
         <span class="kw">if</span> <span class="ident">produce_error</span>.<span class="ident">is_error</span>() {
+            <span class="kw">if</span> <span class="op">!</span><span class="ident">delivery_context_ptr</span>.<span class="ident">is_null</span>() { <span class="comment">// Drop delivery context if provided</span>
+                <span class="kw">unsafe</span> { <span class="ident">Box</span>::<span class="ident">from_raw</span>(<span class="ident">delivery_context_ptr</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">C</span>::<span class="ident">DeliveryContext</span>) };
+            }
             <span class="prelude-val">Err</span>(<span class="ident">KafkaError</span>::<span class="ident">MessageProduction</span>(<span class="ident">produce_error</span>.<span class="ident">into</span>()))
         } <span class="kw">else</span> {
             <span class="prelude-val">Ok</span>(())
@@ -441,6 +458,11 @@
     <span class="doccomment">/// Flushes the producer. Should be called before termination.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">flush</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">timeout_ms</span>: <span class="ident">i32</span>) {
         <span class="kw">unsafe</span> { <span class="ident">rdsys</span>::<span class="ident">rd_kafka_flush</span>(<span class="self">self</span>.<span class="ident">native_ptr</span>(), <span class="ident">timeout_ms</span>) };
+    }
+
+    <span class="doccomment">/// Returns the number of messages waiting to be sent, or send but not acknowledged yet.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">in_flight_count</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">i32</span> {
+        <span class="kw">unsafe</span> { <span class="ident">rdsys</span>::<span class="ident">rd_kafka_outq_len</span>(<span class="self">self</span>.<span class="ident">native_ptr</span>()) }
     }
 }
 

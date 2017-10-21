@@ -273,6 +273,12 @@
 <span id="228">228</span>
 <span id="229">229</span>
 <span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
 </pre><pre class="rust ">
 <span class="doccomment">//! # rust-rdkafka</span>
 <span class="doccomment">//! A fully asynchronous, [futures]-based Kafka client library for Rust based on [librdkafka].</span>
@@ -477,6 +483,12 @@
 <span class="doccomment">//!</span>
 
 <span class="comment">//&gt;alloc_system</span>
+
+<span class="comment">//#![feature(alloc_system, global_allocator, allocator_api)]</span>
+<span class="comment">//extern crate alloc_system;</span>
+<span class="comment">//use alloc_system::System;</span>
+<span class="comment">//#[global_allocator]</span>
+<span class="comment">//static A: System = System;</span>
 
 <span class="attribute">#[<span class="ident">macro_use</span>]</span> <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">log</span>;
 <span class="attribute">#[<span class="ident">macro_use</span>]</span> <span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">serde_derive</span>;

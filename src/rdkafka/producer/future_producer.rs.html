@@ -341,12 +341,59 @@
 <span id="296">296</span>
 <span id="297">297</span>
 <span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
 </pre><pre class="rust ">
 <span class="kw">use</span> <span class="ident">client</span>::{<span class="ident">Context</span>, <span class="ident">EmptyContext</span>};
 <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">ClientConfig</span>, <span class="ident">FromClientConfig</span>, <span class="ident">FromClientConfigAndContext</span>, <span class="ident">RDKafkaLogLevel</span>};
 <span class="kw">use</span> <span class="ident">producer</span>::{<span class="ident">BaseProducer</span>, <span class="ident">DeliveryResult</span>, <span class="ident">EmptyProducerContext</span>, <span class="ident">ProducerContext</span>};
 <span class="kw">use</span> <span class="ident">statistics</span>::<span class="ident">Statistics</span>;
-<span class="kw">use</span> <span class="ident">error</span>::{<span class="ident">KafkaError</span>, <span class="ident">KafkaResult</span>};
+<span class="kw">use</span> <span class="ident">error</span>::{<span class="ident">KafkaError</span>, <span class="ident">KafkaResult</span>, <span class="ident">RDKafkaError</span>};
 <span class="kw">use</span> <span class="ident">message</span>::{<span class="ident">Message</span>, <span class="ident">OwnedMessage</span>, <span class="ident">Timestamp</span>, <span class="ident">ToBytes</span>};
 
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="self">self</span>, <span class="ident">Canceled</span>, <span class="ident">Complete</span>, <span class="ident">Future</span>, <span class="ident">Poll</span>, <span class="ident">Oneshot</span>, <span class="ident">Async</span>};
@@ -354,6 +401,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::<span class="ident">atomic</span>::{<span class="ident">AtomicBool</span>, <span class="ident">Ordering</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">sync</span>::{<span class="ident">Arc</span>, <span class="ident">RwLock</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">thread</span>::{<span class="self">self</span>, <span class="ident">JoinHandle</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::{<span class="ident">Duration</span>, <span class="ident">Instant</span>};
 
 <span class="comment">//</span>
 <span class="comment">// ********** POLLING PRODUCER **********</span>
@@ -404,7 +452,7 @@
                         <span class="kw">if</span> <span class="ident">should_stop</span>.<span class="ident">load</span>(<span class="ident">Ordering</span>::<span class="ident">Relaxed</span>) {
                             <span class="comment">// We received nothing and the thread should</span>
                             <span class="comment">// stop, so break the loop.</span>
-                            <span class="kw">break</span>
+                            <span class="kw">break</span>;
                         }
                     } <span class="kw">else</span> {
                         <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;Received {} events&quot;</span>, <span class="ident">n</span>);
@@ -424,7 +472,7 @@
             <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;Stopping polling&quot;</span>);
             <span class="self">self</span>.<span class="ident">should_stop</span>.<span class="ident">store</span>(<span class="bool-val">true</span>, <span class="ident">Ordering</span>::<span class="ident">Relaxed</span>);
             <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;Waiting for polling thread termination&quot;</span>);
-            <span class="kw">match</span> (<span class="kw-2">*</span><span class="ident">handle_store</span>).<span class="ident">take</span>().<span class="ident">expect</span>(<span class="string">&quot;No handle present in producer context&quot;</span>).<span class="ident">join</span>() {
+            <span class="kw">match</span> (<span class="kw-2">*</span><span class="ident">handle_store</span>).<span class="ident">take</span>().<span class="ident">unwrap</span>().<span class="ident">join</span>() {
                 <span class="prelude-val">Ok</span>(()) <span class="op">=&gt;</span> <span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;Polling stopped&quot;</span>),
                 <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> <span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Failure while terminating thread: {:?}&quot;</span>, <span class="ident">e</span>),
             };
@@ -441,9 +489,25 @@
         <span class="ident">timestamp</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i64</span><span class="op">&gt;</span>,
         <span class="ident">delivery_context</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="ident">C</span>::<span class="ident">DeliveryContext</span><span class="op">&gt;&gt;</span>,
     ) <span class="op">-&gt;</span> <span class="ident">KafkaResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span>
-        <span class="kw">where</span> <span class="ident">K</span>: <span class="ident">ToBytes</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span>,
-              <span class="ident">P</span>: <span class="ident">ToBytes</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span> {
+    <span class="kw">where</span> <span class="ident">K</span>: <span class="ident">ToBytes</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span>,
+          <span class="ident">P</span>: <span class="ident">ToBytes</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span> {
         <span class="self">self</span>.<span class="ident">producer</span>.<span class="ident">send_copy</span>(<span class="ident">topic</span>, <span class="ident">partition</span>, <span class="ident">payload</span>, <span class="ident">key</span>, <span class="ident">delivery_context</span>, <span class="ident">timestamp</span>)
+    }
+
+    <span class="doccomment">/// Polls the internal producer. This is not normally required since the `PollingProducer` had</span>
+    <span class="doccomment">/// a thread dedicated to calling `poll` regularly.</span>
+    <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">timeout_ms</span>: <span class="ident">i32</span>) {
+        <span class="self">self</span>.<span class="ident">producer</span>.<span class="ident">poll</span>(<span class="ident">timeout_ms</span>);
+    }
+
+    <span class="doccomment">/// Flushes the producer. Should be called before termination.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">flush</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">timeout_ms</span>: <span class="ident">i32</span>) {
+        <span class="self">self</span>.<span class="ident">producer</span>.<span class="ident">flush</span>(<span class="ident">timeout_ms</span>);
+    }
+
+    <span class="doccomment">/// Returns the number of messages waiting to be sent, or send but not acknowledged yet.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">in_flight_count</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">i32</span> {
+        <span class="self">self</span>.<span class="ident">producer</span>.<span class="ident">in_flight_count</span>()
     }
 }
 
@@ -463,7 +527,7 @@
 <span class="doccomment">/// `DeliveryContext` and will complete the future when the message is delivered (or failed to).</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">struct</span> <span class="ident">FutureProducerContext</span><span class="op">&lt;</span><span class="ident">C</span>: <span class="ident">Context</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
-    <span class="ident">wrapped_context</span>: <span class="ident">C</span>
+    <span class="ident">wrapped_context</span>: <span class="ident">C</span>,
 }
 
 <span class="doccomment">/// Represents the result of message production as performed from the `FutureProducer`.</span>
@@ -496,7 +560,7 @@
             <span class="kw-2">&amp;</span><span class="prelude-val">Ok</span>(<span class="kw-2">ref</span> <span class="ident">message</span>) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>((<span class="ident">message</span>.<span class="ident">partition</span>(), <span class="ident">message</span>.<span class="ident">offset</span>())),
             <span class="kw-2">&amp;</span><span class="prelude-val">Err</span>((<span class="kw-2">ref</span> <span class="ident">error</span>, <span class="kw-2">ref</span> <span class="ident">message</span>)) <span class="op">=&gt;</span> <span class="prelude-val">Err</span>((<span class="ident">error</span>.<span class="ident">clone</span>(), <span class="ident">message</span>.<span class="ident">detach</span>())),
         };
-        <span class="kw">let</span> _ <span class="op">=</span> <span class="ident">tx</span>.<span class="ident">send</span>(<span class="ident">owned_delivery_result</span>);   <span class="comment">// TODO: handle error</span>
+        <span class="kw">let</span> _ <span class="op">=</span> <span class="ident">tx</span>.<span class="ident">send</span>(<span class="ident">owned_delivery_result</span>); <span class="comment">// TODO: handle error</span>
     }
 }
 
@@ -511,12 +575,12 @@
 <span class="doccomment">/// `stop` method or moving the `FutureProducer` out of scope.</span>
 <span class="attribute">#[<span class="ident">must_use</span> <span class="op">=</span> <span class="string">&quot;Producer polling thread will stop immediately if unused&quot;</span>]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">FutureProducer</span><span class="op">&lt;</span><span class="ident">C</span>: <span class="ident">Context</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
-    <span class="ident">inner</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PollingProducer</span><span class="op">&lt;</span><span class="ident">FutureProducerContext</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">producer</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PollingProducer</span><span class="op">&lt;</span><span class="ident">FutureProducerContext</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">C</span>: <span class="ident">Context</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">Clone</span> <span class="kw">for</span> <span class="ident">FutureProducer</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">FutureProducer</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span> {
-        <span class="ident">FutureProducer</span> { <span class="ident">inner</span>: <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">clone</span>() }
+        <span class="ident">FutureProducer</span> { <span class="ident">producer</span>: <span class="self">self</span>.<span class="ident">producer</span>.<span class="ident">clone</span>() }
     }
 }
 
@@ -528,9 +592,9 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">C</span>: <span class="ident">Context</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">FromClientConfigAndContext</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">FutureProducer</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">from_config_and_context</span>(<span class="ident">config</span>: <span class="kw-2">&amp;</span><span class="ident">ClientConfig</span>, <span class="ident">context</span>: <span class="ident">C</span>) <span class="op">-&gt;</span> <span class="ident">KafkaResult</span><span class="op">&lt;</span><span class="ident">FutureProducer</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;&gt;</span> {
-        <span class="kw">let</span> <span class="ident">future_context</span> <span class="op">=</span> <span class="ident">FutureProducerContext</span> { <span class="ident">wrapped_context</span>: <span class="ident">context</span>};
+        <span class="kw">let</span> <span class="ident">future_context</span> <span class="op">=</span> <span class="ident">FutureProducerContext</span> { <span class="ident">wrapped_context</span>: <span class="ident">context</span> };
         <span class="kw">let</span> <span class="ident">polling_producer</span> <span class="op">=</span> <span class="ident">PollingProducer</span>::<span class="ident">from_config_and_context</span>(<span class="ident">config</span>, <span class="ident">future_context</span>)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="ident">FutureProducer</span> { <span class="ident">inner</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">polling_producer</span>) })
+        <span class="prelude-val">Ok</span>(<span class="ident">FutureProducer</span> { <span class="ident">producer</span>: <span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">polling_producer</span>) })
     }
 }
 
@@ -564,35 +628,50 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">C</span>: <span class="ident">Context</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span> <span class="ident">FutureProducer</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Sends a copy of the payload and key provided to the specified topic. When no partition is</span>
-    <span class="doccomment">/// specified the underlying Kafka library picks a partition based on the key.</span>
-    <span class="doccomment">/// Returns a `DeliveryFuture`.</span>
+    <span class="doccomment">/// specified the underlying Kafka library picks a partition based on the key, or a random one</span>
+    <span class="doccomment">/// if the key is not specified. Returns a `DeliveryFuture` that will eventually contain the</span>
+    <span class="doccomment">/// result of the send. The `block_ms` parameter will control for how long the producer</span>
+    <span class="doccomment">/// is allowed to block if the queue is full. Set it to -1 to block forever, or 0 to never block.</span>
+    <span class="doccomment">/// If `block_ms` is reached and the queue is still full, a `RDKafkaError::QueueFull` will be</span>
+    <span class="doccomment">/// reported in the `DeliveryFuture`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">send_copy</span><span class="op">&lt;</span><span class="ident">P</span>, <span class="ident">K</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">topic</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
         <span class="ident">partition</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span>,
         <span class="ident">payload</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">P</span><span class="op">&gt;</span>,
         <span class="ident">key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">K</span><span class="op">&gt;</span>,
-        <span class="ident">timestamp</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i64</span><span class="op">&gt;</span>
+        <span class="ident">timestamp</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i64</span><span class="op">&gt;</span>,
+        <span class="ident">block_ms</span>: <span class="ident">i64</span>,
     ) <span class="op">-&gt;</span> <span class="ident">DeliveryFuture</span>
-        <span class="kw">where</span> <span class="ident">K</span>: <span class="ident">ToBytes</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span>,
-              <span class="ident">P</span>: <span class="ident">ToBytes</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span> {
-        <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">oneshot</span>();
+    <span class="kw">where</span> <span class="ident">K</span>: <span class="ident">ToBytes</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span>,
+          <span class="ident">P</span>: <span class="ident">ToBytes</span> <span class="op">+</span> <span class="question-mark">?</span><span class="ident">Sized</span> {
+        <span class="kw">let</span> <span class="ident">start_time</span> <span class="op">=</span> <span class="ident">Instant</span>::<span class="ident">now</span>();
 
-        <span class="comment">// TODO: catch and retry on QueueFull</span>
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">send_copy</span>(<span class="ident">topic</span>, <span class="ident">partition</span>, <span class="ident">payload</span>, <span class="ident">key</span>, <span class="ident">timestamp</span>, <span class="prelude-val">Some</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">tx</span>))) {
-            <span class="prelude-val">Ok</span>(_) <span class="op">=&gt;</span> <span class="ident">DeliveryFuture</span>{ <span class="ident">rx</span> },
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> {
-                <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">oneshot</span>();
-                <span class="kw">let</span> <span class="ident">owned_message</span> <span class="op">=</span> <span class="ident">OwnedMessage</span>::<span class="ident">new</span>(
-                    <span class="ident">payload</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">p</span><span class="op">|</span> <span class="ident">p</span>.<span class="ident">to_bytes</span>().<span class="ident">to_vec</span>()),
-                    <span class="ident">key</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">k</span><span class="op">|</span> <span class="ident">k</span>.<span class="ident">to_bytes</span>().<span class="ident">to_vec</span>()),
-                    <span class="ident">topic</span>.<span class="ident">to_owned</span>(),
-                    <span class="ident">timestamp</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">millis</span><span class="op">|</span> <span class="ident">Timestamp</span>::<span class="ident">CreateTime</span>(<span class="ident">millis</span>)).<span class="ident">unwrap_or</span>(<span class="ident">Timestamp</span>::<span class="ident">NotAvailable</span>),
-                    <span class="op">-</span><span class="number">1</span>,
-                    <span class="number">0</span>
-                );
-                <span class="kw">let</span> _ <span class="op">=</span> <span class="ident">tx</span>.<span class="ident">send</span>(<span class="prelude-val">Err</span>((<span class="ident">e</span>, <span class="ident">owned_message</span>)));
-                <span class="ident">DeliveryFuture</span> { <span class="ident">rx</span> }
+        <span class="kw">loop</span> {
+            <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">oneshot</span>();
+            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">producer</span>.<span class="ident">send_copy</span>(<span class="ident">topic</span>, <span class="ident">partition</span>, <span class="ident">payload</span>, <span class="ident">key</span>, <span class="ident">timestamp</span>, <span class="prelude-val">Some</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">tx</span>))) {
+                <span class="prelude-val">Ok</span>(_) <span class="op">=&gt;</span> <span class="kw">break</span> <span class="ident">DeliveryFuture</span>{ <span class="ident">rx</span> },
+                <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> {
+                    <span class="kw">if</span> <span class="kw">let</span> <span class="ident">KafkaError</span>::<span class="ident">MessageProduction</span>(<span class="ident">RDKafkaError</span>::<span class="ident">QueueFull</span>) <span class="op">=</span> <span class="ident">e</span> {
+                        <span class="kw">if</span> <span class="ident">block_ms</span> <span class="op">==</span> <span class="op">-</span><span class="number">1</span> {
+                            <span class="kw">continue</span>;
+                        } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">block_ms</span> <span class="op">&gt;</span> <span class="number">0</span> <span class="op">&amp;&amp;</span> <span class="ident">start_time</span>.<span class="ident">elapsed</span>() <span class="op">&lt;</span> <span class="ident">Duration</span>::<span class="ident">from_millis</span>(<span class="ident">block_ms</span> <span class="kw">as</span> <span class="ident">u64</span>) {
+                            <span class="self">self</span>.<span class="ident">poll</span>(<span class="number">100</span>);
+                            <span class="kw">continue</span>;
+                        }
+                    }
+                    <span class="kw">let</span> (<span class="ident">tx</span>, <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">futures</span>::<span class="ident">oneshot</span>();
+                    <span class="kw">let</span> <span class="ident">owned_message</span> <span class="op">=</span> <span class="ident">OwnedMessage</span>::<span class="ident">new</span>(
+                        <span class="ident">payload</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">p</span><span class="op">|</span> <span class="ident">p</span>.<span class="ident">to_bytes</span>().<span class="ident">to_vec</span>()),
+                        <span class="ident">key</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">k</span><span class="op">|</span> <span class="ident">k</span>.<span class="ident">to_bytes</span>().<span class="ident">to_vec</span>()),
+                        <span class="ident">topic</span>.<span class="ident">to_owned</span>(),
+                        <span class="ident">timestamp</span>.<span class="ident">map_or</span>(<span class="ident">Timestamp</span>::<span class="ident">NotAvailable</span>, <span class="op">|</span><span class="ident">millis</span><span class="op">|</span> <span class="ident">Timestamp</span>::<span class="ident">CreateTime</span>(<span class="ident">millis</span>)),
+                        <span class="ident">partition</span>.<span class="ident">unwrap_or</span>(<span class="op">-</span><span class="number">1</span>),
+                        <span class="number">0</span>
+                    );
+                    <span class="kw">let</span> _ <span class="op">=</span> <span class="ident">tx</span>.<span class="ident">send</span>(<span class="prelude-val">Err</span>((<span class="ident">e</span>, <span class="ident">owned_message</span>)));
+                    <span class="kw">break</span> <span class="ident">DeliveryFuture</span> { <span class="ident">rx</span> };
+                }
             }
         }
     }
@@ -600,10 +679,24 @@
     <span class="doccomment">/// Stops the internal polling thread. The thread can also be stopped by moving</span>
     <span class="doccomment">/// the `FutureProducer` out of scope.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">stop</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-        <span class="self">self</span>.<span class="ident">inner</span>.<span class="ident">stop</span>();
+        <span class="self">self</span>.<span class="ident">producer</span>.<span class="ident">stop</span>();
     }
 
-    <span class="comment">// TODO: add poll and flush</span>
+    <span class="doccomment">/// Polls the internal producer. This is not normally required since the `PollingProducer` had</span>
+    <span class="doccomment">/// a thread dedicated to calling `poll` regularly.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">poll</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">timeout_ms</span>: <span class="ident">i32</span>) {
+        <span class="self">self</span>.<span class="ident">producer</span>.<span class="ident">poll</span>(<span class="ident">timeout_ms</span>);
+    }
+
+    <span class="doccomment">/// Flushes the producer. Should be called before termination.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">flush</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">timeout_ms</span>: <span class="ident">i32</span>) {
+        <span class="self">self</span>.<span class="ident">producer</span>.<span class="ident">flush</span>(<span class="ident">timeout_ms</span>);
+    }
+
+    <span class="doccomment">/// Returns the number of messages waiting to be sent, or send but not acknowledged yet.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">in_flight_count</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">i32</span> {
+        <span class="self">self</span>.<span class="ident">producer</span>.<span class="ident">in_flight_count</span>()
+    }
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
@@ -636,7 +729,8 @@
     <span class="kw">fn</span> <span class="ident">test_base_future_topic_send_sync</span>() {
         <span class="kw">let</span> <span class="ident">test_context</span> <span class="op">=</span> <span class="ident">TestContext</span>;
         <span class="kw">let</span> <span class="ident">producer</span> <span class="op">=</span> <span class="ident">ClientConfig</span>::<span class="ident">new</span>()
-            .<span class="ident">create_with_context</span>::<span class="op">&lt;</span><span class="ident">TestContext</span>, <span class="ident">FutureProducer</span><span class="op">&lt;</span>_<span class="op">&gt;&gt;</span>(<span class="ident">test_context</span>).<span class="ident">unwrap</span>();
+            .<span class="ident">create_with_context</span>::<span class="op">&lt;</span><span class="ident">TestContext</span>, <span class="ident">FutureProducer</span><span class="op">&lt;</span>_<span class="op">&gt;&gt;</span>(<span class="ident">test_context</span>)
+            .<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">_producer_clone</span> <span class="op">=</span> <span class="ident">producer</span>.<span class="ident">clone</span>();
     }
 }
