@@ -93,6 +93,11 @@
 <span id="48">48</span>
 <span id="49">49</span>
 <span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
 </pre><pre class="rust ">
 <span class="kw">use</span> <span class="ident">rdsys</span>;
 
@@ -113,12 +118,17 @@
     <span class="ident">duration</span>.<span class="ident">as_secs</span>() <span class="op">*</span> <span class="number">1000</span> <span class="op">+</span> <span class="ident">nanos</span><span class="op">/</span><span class="number">1_000_000</span>
 }
 
+<span class="doccomment">/// Converts the given time to milliseconds since unix epoch.</span>
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">millis_to_epoch</span>(<span class="ident">time</span>: <span class="ident">SystemTime</span>) <span class="op">-&gt;</span> <span class="ident">i64</span> {
     <span class="kw">let</span> <span class="ident">duration_since_epoch</span> <span class="op">=</span> <span class="ident">time</span>.<span class="ident">duration_since</span>(<span class="ident">UNIX_EPOCH</span>)
         .<span class="ident">unwrap_or_else</span>(<span class="op">|</span>_<span class="op">|</span> <span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">0</span>));
     <span class="ident">duration_to_millis</span>(<span class="ident">duration_since_epoch</span>) <span class="kw">as</span> <span class="ident">i64</span>
 }
 
+<span class="doccomment">/// Returns the current time in millis since unix epoch.</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">current_time_millis</span>() <span class="op">-&gt;</span> <span class="ident">i64</span> {
+    <span class="ident">millis_to_epoch</span>(<span class="ident">SystemTime</span>::<span class="ident">now</span>())
+}
 
 <span class="comment">// TODO: check if the implementation returns a copy of the data and update the documentation</span>
 <span class="doccomment">/// Converts a byte array representing a C string into a String.</span>

@@ -279,6 +279,7 @@
 <span id="234">234</span>
 <span id="235">235</span>
 <span id="236">236</span>
+<span id="237">237</span>
 </pre><pre class="rust ">
 <span class="doccomment">//! # rust-rdkafka</span>
 <span class="doccomment">//! A fully asynchronous, [futures]-based Kafka client library for Rust based on [librdkafka].</span>
@@ -512,9 +513,10 @@
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">util</span>;
 
 <span class="comment">// Re-export</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">ClientConfig</span>, <span class="ident">TopicConfig</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">client</span>::<span class="ident">Context</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">config</span>::{<span class="ident">ClientConfig</span>, <span class="ident">TopicConfig</span>};
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">message</span>::{<span class="ident">Message</span>, <span class="ident">Timestamp</span>};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">statistics</span>::<span class="ident">Statistics</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">topic_partition_list</span>::{<span class="ident">Offset</span>, <span class="ident">TopicPartitionList</span>};
 </pre>
 </section>
