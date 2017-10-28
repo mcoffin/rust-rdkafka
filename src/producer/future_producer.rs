@@ -5,8 +5,11 @@ use statistics::Statistics;
 use error::{KafkaError, KafkaResult, RDKafkaError};
 use message::{Message, OwnedMessage, Timestamp, ToBytes};
 
-use futures::{self, Canceled, Complete, Future, Poll, Oneshot, Async};
+use futures::{self, Canceled, Complete, Future, Poll, Oneshot, Async, AsyncSink, StartSend};
+use futures::sink::Sink;
 
+use std::borrow::{ Borrow, Cow };
+use std::marker::PhantomData;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::thread::{self, JoinHandle};
@@ -232,6 +235,119 @@ impl Future for DeliveryFuture {
             Ok(Async::Ready(owned_delivery_result)) => Ok(Async::Ready(owned_delivery_result)),
             Err(Canceled) => Err(Canceled),
         }
+    }
+}
+
+/// A single borrowed message to be sent to the `Sink` api of the FutureProducer.
+///
+/// Basically, a unified record for the arguments to `FutureProducer::send_copy`.
+pub struct ProducerRecord<'a, K: ToBytes + ?Sized + 'a, P: ToBytes + ?Sized + 'a> {
+    pub topic: Cow<'a, str>,
+    pub partition: Option<i32>,
+    pub payload: Option<P>,
+    pub key: Option<K>,
+    pub timestamp: Option<i64>,
+}
+
+impl<'a, K: ToBytes + ?Sized + 'a, P: ToBytes + ?Sized + 'a> Into<OwnedMessage> for ProducerRecord<'a, K, P> {
+    fn into(self) -> OwnedMessage {
+        OwnedMessage::new(
+            self.payload.map(|p| p.to_bytes().to_vec()),
+            self.key.map(|k| k.to_bytes().to_vec()),
+            self.topic.into_owned(),
+            self.timestamp.map_or(Timestamp::NotAvailable, |millis| Timestamp::CreateTime(millis)),
+            self.partition.unwrap_or(-1),
+            0
+        )
+    }
+}
+
+/// Error type produced by the `SinkProducer`
+pub enum SinkProducerError {
+    Canceled,
+    Kafka(KafkaError, OwnedMessage),
+}
+
+/// Producer that follows the `futures::sink::Sink` pattern.
+pub struct SinkProducer<C: Context + 'static> {
+    producer: FutureProducer<C>,
+    finished: Option<Box<Future<Item=(),Error=SinkProducerError>>>,
+}
+
+/// See `SinkProducer::as_sink`
+pub struct SinkProducerImpl<'a, K: ?Sized + 'a, P: ?Sized + 'a, C: Context + 'static> {
+    inner: &'a mut SinkProducer<C>,
+    phantom_key: PhantomData<&'a K>,
+    phantom_payload: PhantomData<&'a P>,
+}
+
+impl<C: Context + 'static> SinkProducer<C> {
+    /// Creates a new `SinkProducer` wrapping the given `FutureProducer`
+    #[inline(always)]
+    pub fn new(producer: FutureProducer<C>) -> SinkProducer<C> {
+        SinkProducer {
+            producer: producer,
+            finished: None,
+        }
+    }
+
+    // TODO: This is probably and anti-pattern and I should figure out how to make this actually
+    // happen.
+    /// Creates (hopefully at 0-cost), a reference to this producer that can send
+    /// `ProducerRecords` with the given key and payload types, and a given lifetime
+    #[inline(always)]
+    pub fn as_sink<'a, K: ?Sized + 'a, P: ?Sized + 'a>(&'a mut self) -> SinkProducerImpl<'a, K, P, C> {
+        SinkProducerImpl {
+            inner: self,
+            phantom_key: PhantomData,
+            phantom_payload: PhantomData,
+        }
+    }
+}
+
+impl<'a, K: ToBytes + ?Sized + 'a, P: ToBytes + ?Sized + 'a, C: Context + 'static> Sink for SinkProducerImpl<'a, K, P, C> {
+    type SinkItem = ProducerRecord<'a, K, P>;
+    type SinkError = SinkProducerError;
+
+    fn start_send(&mut self, rec: ProducerRecord<'a, K, P>) -> StartSend<ProducerRecord<'a, K, P>, SinkProducerError> {
+        // First, create the DeliveryFuture, returning immediately if we receive a QueueFull error
+        let (tx, rx) = futures::oneshot();
+        let f = match self.inner.producer.producer.send_copy::<P, K>(rec.topic.borrow(), rec.partition, rec.payload.as_ref().map(Borrow::borrow), rec.key.as_ref().map(Borrow::borrow), rec.timestamp, Some(Box::new(tx))) {
+            Ok(_) => DeliveryFuture { rx },
+            Err(KafkaError::MessageProduction(RDKafkaError::QueueFull)) => {
+                return Ok(AsyncSink::NotReady(rec));
+            },
+            Err(e) => {
+                // TODO: Think about making a new error case that just returns the still-borrowed
+                // rec parameter instead of forcing a clone here?
+                return Err(SinkProducerError::Kafka(e, rec.into()));
+            }
+        };
+        // Translate the DeliveryFuture in to the sink producer's error format
+        // and check for kafka errors on the future
+        let f = f
+            .map_err(|_: Canceled| SinkProducerError::Canceled)
+            .and_then(|result| match result {
+                Ok(_) => Ok(()),
+                Err((e, msg)) => Err(SinkProducerError::Kafka(e, msg))
+            });
+        let new_finished = if let Some(last) = self.inner.finished.take() {
+            Box::new(last.and_then(move |_| f)) as Box<Future<Item=(),Error=Self::SinkError>>
+        } else {
+            Box::new(f) as Box<Future<Item=(),Error=Self::SinkError>>
+        };
+        self.inner.finished = Some(new_finished);
+        Ok(AsyncSink::Ready)
+    }
+
+    fn poll_complete(&mut self) -> Poll<(), SinkProducerError> {
+        let ret = self.inner.finished.as_mut()
+            .map(|f| f.poll())
+            .unwrap_or(Ok(Async::Ready(())));
+        if let &Ok(Async::Ready(_)) = &ret {
+            self.inner.finished = None;
+        }
+        ret
     }
 }
 

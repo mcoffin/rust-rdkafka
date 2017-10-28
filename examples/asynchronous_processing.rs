@@ -8,6 +8,7 @@ extern crate tokio_core;
 
 use clap::{App, Arg};
 use futures::Future;
+use futures::sink::Sink;
 use futures::stream::Stream;
 use futures_cpupool::Builder;
 use tokio_core::reactor::Core;
@@ -18,6 +19,7 @@ use rdkafka::consumer::stream_consumer::StreamConsumer;
 use rdkafka::config::{ClientConfig, TopicConfig};
 use rdkafka::message::OwnedMessage;
 use rdkafka::producer::FutureProducer;
+use rdkafka::producer::future_producer::{ProducerRecord, SinkProducer};
 
 use std::thread;
 use std::time::Duration;
@@ -81,6 +83,8 @@ fn run_async_processor(brokers: &str, group_id: &str, input_topic: &str, output_
     // to the event loop.
     let handle = core.handle();
 
+    let mut sink = SinkProducer::new(producer.clone());
+
     // Create the outer pipeline on the message stream.
     let processed_stream = consumer.start()
         .filter_map(|result| {  // Filter out errors
@@ -91,34 +95,54 @@ fn run_async_processor(brokers: &str, group_id: &str, input_topic: &str, output_
                     None
                 }
             }
-        }).for_each(|msg| {     // Process each message
-            info!("Enqueuing message for computation");
-            let producer = producer.clone();
-            let topic_name = output_topic.to_owned();
+        }).and_then(|msg| {
+            info!("Enqueueing message for computation");
             let owned_message = msg.detach();
-            // Create the inner pipeline, that represents the processing of a single event.
-            let process_message = cpu_pool.spawn_fn(move || {
-                // Take ownership of the message, and runs an expensive computation on it,
-                // using one of the threads of the `cpu_pool`.
+            cpu_pool.spawn_fn(move || {
                 Ok(expensive_computation(owned_message))
-            }).and_then(move |computation_result| {
-                // Send the result of the computation to Kafka, asynchronously.
-                info!("Sending result");
-                producer.send_copy::<String, ()>(&topic_name, None, Some(&computation_result), None, None, 1000)
-            }).and_then(|d_report| {
-                // Once the message has been produced, print the delivery report and terminate
-                // the pipeline.
-                info!("Delivery report for result: {:?}", d_report);
-                Ok(())
-            }).or_else(|err| {
-                // In case of error, this closure will be executed instead.
-                warn!("Error while processing message: {:?}", err);
-                Ok(())
-            });
-            // Spawns the inner pipeline in the same event pool.
-            handle.spawn(process_message);
-            Ok(())
+            })
+        }).map(|computation_result| {
+            let topic_name = output_topic.to_owned();
+            ProducerRecord::<[u8], _> {
+                topic: topic_name.into(),
+                partition: None,
+                payload: Some(computation_result.into()),
+                key: None,
+                timestamp: None,
+            }
+        }).forward(sink.as_sink().sink_map_err(|_| ())).and_then(|_| Ok(())).or_else(|err| {
+            warn!("error while processing messages");
+            let ret: Result<(), ()> = Ok(());
+            ret
         });
+    //.for_each(|msg| {     // Process each message
+    //        info!("Enqueuing message for computation");
+    //        let producer = SinkProducer::new(producer.clone());
+    //        let topic_name = output_topic.to_owned();
+    //        let owned_message = msg.detach();
+    //        // Create the inner pipeline, that represents the processing of a single event.
+    //        let process_message = cpu_pool.spawn_fn(move || {
+    //            // Take ownership of the message, and runs an expensive computation on it,
+    //            // using one of the threads of the `cpu_pool`.
+    //            Ok(expensive_computation(owned_message))
+    //        }).and_then(move |computation_result| {
+    //            // Send the result of the computation to Kafka, asynchronously.
+    //            info!("Sending result");
+    //            producer.send_copy::<String, ()>(&topic_name, None, Some(&computation_result), None, None, 1000)
+    //        }).and_then(|d_report| {
+    //            // Once the message has been produced, print the delivery report and terminate
+    //            // the pipeline.
+    //            info!("Delivery report for result: {:?}", d_report);
+    //            Ok(())
+    //        }).or_else(|err| {
+    //            // In case of error, this closure will be executed instead.
+    //            warn!("Error while processing message: {:?}", err);
+    //            Ok(())
+    //        });
+    //        // Spawns the inner pipeline in the same event pool.
+    //        handle.spawn(process_message);
+    //        Ok(())
+    //    });
 
     info!("Starting event loop");
     // Runs the event pool until the consumer terminates.
